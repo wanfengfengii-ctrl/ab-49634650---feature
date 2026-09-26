@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>地震预警二进制码编配工作台</title>
+  <meta name="description" content="为 5–8 类地震预警警报编配前缀无关的最优短二进制码表，支持码长区间与保留前缀约束。">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>地震预警二进制码编配工作台</h1>
+    <p class="subtitle">
+      为 5–8 类警报各编配恰一条二进制码字：码字两两前缀无关（任意连续电文可唯一拆分），
+      避开保留分支，并依次使 <em>加权码长总和</em>、<em>最大码长</em>、<em>码字字典序</em> 最优。
+    </p>
+  </header>
+
+  <main class="layout">
+    <section id="input-panel" class="panel" aria-label="参数录入">
+      <div class="panel-head">
+        <h2>① 录入参数</h2>
+        <div class="actions">
+          <button type="button" id="load-sample" class="btn">载入示例</button>
+          <button type="button" id="reset" class="btn">清空</button>
+        </div>
+      </div>
+
+      <h3>警报类别 <span id="alert-count" class="hint"></span></h3>
+      <div id="alert-rows"></div>
+      <div class="row-actions">
+        <button type="button" id="add-alert" class="btn small">＋ 添加警报类别</button>
+      </div>
+
+      <h3>保留前缀 <span class="hint">0–3 条，其代表的码空间整体封禁</span></h3>
+      <div id="reserved-rows"></div>
+      <div class="row-actions">
+        <button type="button" id="add-reserved" class="btn small">＋ 添加保留前缀</button>
+      </div>
+
+      <div id="errors" class="errors" hidden></div>
+
+      <button type="button" id="solve" class="btn primary">生成码表</button>
+    </section>
+
+    <section id="result-panel" class="panel" aria-label="编配结果">
+      <h2>② 编配结果</h2>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>码长上限 12 位 · 目标优先级：总加权码长 → 最大码长 → 按输入顺序展开的码字字典序</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

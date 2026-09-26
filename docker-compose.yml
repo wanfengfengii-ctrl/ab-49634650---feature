@@ -1,0 +1,31 @@
+name: quake-alert-codec
+
+services:
+  # 静态前端服务：宿主机端口可通过 PORT 环境变量配置（默认 8080）
+  web:
+    build:
+      context: .
+      target: serve
+    image: quake-alert-codec-web
+    ports:
+      - "${PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # 一次性验证服务：代码测试 + 构建检查 + 健康地址冒烟，以退出码结束
+  verify:
+    build:
+      context: .
+      target: verify
+    image: quake-alert-codec-verify
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      HEALTH_URL: http://web/healthz
+      WEB_URL: http://web/
+      SMOKE_TIMEOUT_MS: "60000"

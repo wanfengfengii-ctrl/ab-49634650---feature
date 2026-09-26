@@ -1,0 +1,13 @@
+{
+  "name": "quake-alert-codec",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "地震预警二进制码编配工作台：带保留前缀约束的最优前缀码静态前端",
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/serve.mjs",
+    "verify": "node scripts/verify.mjs"
+  }
+}
