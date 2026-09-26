@@ -6,6 +6,7 @@ import {
   MAX_CODE_LENGTH,
 } from './solver.js';
 import { buildTreeLayout } from './tree.js';
+import { auditSyncMarker } from './audit.js';
 
 const SAMPLE = {
   alerts: [
@@ -31,6 +32,14 @@ const alertRowsEl = $('#alert-rows');
 const reservedRowsEl = $('#reserved-rows');
 const errorsEl = $('#errors');
 const resultsEl = $('#results');
+const auditResultsEl = $('#audit-results');
+const auditMarkerEl = $('#audit-marker');
+const auditRunEl = $('#audit-run');
+
+// currentResult：当前"已生成且仍有效"的 optimal 码表；草稿任何变动立即置空。
+// auditResult：最近一次审计结论，仅在 currentResult 与标记均未变化时有效。
+let currentResult = null;
+let auditResult = null;
 
 function esc(s) {
   return String(s)
@@ -103,7 +112,21 @@ function renderForm() {
 /* ---------------- 结论失效 ---------------- */
 
 function invalidateResults(message = '输入已变更，旧结论已失效，请重新生成码表。') {
+  currentResult = null;
+  auditResult = null;
   resultsEl.innerHTML = `<p class="placeholder stale">${esc(message)}</p>`;
+  renderAuditStale('码表已失效：请重新生成码表后再发起审计，旧审计结论不再沿用。');
+  setAuditEnabled(false);
+}
+
+function setAuditEnabled(enabled) {
+  auditRunEl.disabled = !enabled;
+}
+
+function invalidateAudit(message = '同步标记已修改，旧审计结论已失效，请重新发起审计。') {
+  auditResult = null;
+  auditResultsEl.innerHTML = `<p class="placeholder stale">${esc(message)}</p>`;
+  if (currentResult && currentResult.status === 'optimal') renderResult(currentResult);
 }
 
 function clearErrors() {
@@ -143,13 +166,15 @@ function renderStats(result) {
     </div>`;
 }
 
-function renderDetailTable(result) {
+function renderDetailTable(result, audit) {
+  const touched =
+    audit && audit.status === 'risk' ? new Set(audit.touchedAlertIndexes) : null;
   const rows = result.alerts
     .map(
       (a, i) => `
-      <tr>
+      <tr class="${touched && touched.has(i) ? 'audit-row-hit' : ''}">
         <td class="idx">${i + 1}</td>
-        <td>${esc(a.name)}</td>
+        <td>${esc(a.name)}${touched && touched.has(i) ? '<span class="audit-badge">审计涉及</span>' : ''}</td>
         <td><code class="code">${esc(a.code)}</code></td>
         <td>${a.length}</td>
         <td>${a.freq}</td>
@@ -197,11 +222,17 @@ function truncate(s, n = 6) {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-function renderTree(result) {
+function renderTree(result, audit) {
   const { nodes, edges, width, height } = buildTreeLayout(
     result.alerts.map((a) => ({ code: a.code, name: a.name })),
     result.reserved ?? [],
   );
+  const touched =
+    audit && audit.status === 'risk'
+      ? new Set(
+          audit.touchedAlertIndexes.map((i) => result.alerts[i].code),
+        )
+      : null;
 
   const edgeSvg = edges
     .map((e) => {
@@ -219,9 +250,10 @@ function renderTree(result) {
         return `<circle cx="${n.cx}" cy="${n.cy}" r="2.6" class="dot"><title>未使用的子树</title></circle>`;
       }
       if (n.type === 'code') {
+        const hit = touched && touched.has(n.prefix);
         return `
-          <g class="node code-node">
-            <circle cx="${n.cx}" cy="${n.cy}" r="11"><title>${esc(n.label)}：${esc(n.prefix)}</title></circle>
+          <g class="node code-node${hit ? ' audit-hit' : ''}">
+            <circle cx="${n.cx}" cy="${n.cy}" r="11"><title>${esc(n.label)}：${esc(n.prefix)}${hit ? '（审计涉及）' : ''}</title></circle>
             <text x="${n.cx}" y="${n.cy + 26}" class="node-label">${esc(truncate(n.label))}</text>
             <text x="${n.cx}" y="${n.cy + 40}" class="node-code">${esc(n.prefix)}</text>
           </g>`;
@@ -259,10 +291,12 @@ function renderResult(result) {
     resultsEl.innerHTML = `
       ${renderBanner(result)}
       ${renderStats(result)}
-      ${renderTree(result)}
-      ${renderDetailTable(result)}
+      ${renderTree(result, auditResult)}
+      ${renderDetailTable(result, auditResult)}
       ${renderReserved(result)}
-      <p class="hint">搜索节点数：${result.exploredNodes}。码字两两前缀无关，任意连续电文均可按前缀码唯一拆分。</p>`;
+      <p class="hint">搜索节点数：${result.exploredNodes}。码字两两前缀无关，任意连续电文均可按前缀码唯一拆分。${
+        auditResult ? '码树与明细中已标示最近一次隔离审计涉及的码字。' : ''
+      }</p>`;
   } else {
     // infeasible / error：明确说明没有可用的完整分配
     const reservedInfo =
@@ -273,6 +307,93 @@ function renderResult(result) {
         : '';
     resultsEl.innerHTML = `${renderBanner(result)}${reservedInfo}`;
   }
+}
+
+/* ---------------- 同步标记隔离审计 ---------------- */
+
+function renderAuditStale(message) {
+  auditResultsEl.innerHTML = `<p class="placeholder stale">${esc(message)}</p>`;
+}
+
+function renderBitStream(a) {
+  const { markerStart, markerEnd, path } = a;
+  const words = path
+    .map((seg, t) => {
+      const cells = [...seg.code]
+        .map((bit, d) => {
+          const q = seg.start + d;
+          const inMarker = q >= markerStart && q <= markerEnd;
+          const cls =
+            'bit' + (inMarker ? (q === markerStart ? ' marker-start' : ' marker') : '');
+          return `<span class="${cls}" title="位 ${q}">${bit}</span>`;
+        })
+        .join('');
+      const touched = t >= a.startPathIndex && t <= a.endPathIndex;
+      return `<span class="word${touched ? ' touched' : ''}" title="第 ${t + 1} 条：${esc(seg.name)}（输入序号 ${seg.alertIndex + 1}）">${cells}</span>`;
+    })
+    .join('<span class="word-boundary" title="码字边界">│</span>');
+  return `<div class="bitstream" role="img" aria-label="证据帧完整比特流">${words}</div>`;
+}
+
+function renderAuditRisk(a) {
+  const spanNote = a.spansBoundary
+    ? `标记<b>跨越了第 ${a.startPathIndex + 1} 条与第 ${a.endPathIndex + 1} 条码字的边界</b>。`
+    : `标记完全落在第 ${a.startPathIndex + 1} 条码字内部（码字内偏移 ${a.startOffset}）。`;
+  const pathRows = a.path
+    .map((seg, t) => {
+      const touched = t >= a.startPathIndex && t <= a.endPathIndex;
+      return `
+        <tr class="${touched ? 'audit-row-hit' : ''}">
+          <td class="idx">${t + 1}</td>
+          <td>${esc(seg.name)}<span class="hint">（输入序号 ${seg.alertIndex + 1}）</span></td>
+          <td><code class="code">${esc(seg.code)}</code></td>
+          <td>[${seg.start}, ${seg.end})</td>
+          <td>${touched ? '<b>涉及标记</b>' : '—'}</td>
+        </tr>`;
+    })
+    .join('');
+  return `
+    <div class="banner fail">✗ 发现误同步风险：标记 <code class="code audit-marker-code">${esc(a.marker)}</code>
+      在一条 ${a.count} 条警报的连续帧中，于电文第 <b>${a.position}</b> 位（0 起算）处出现，
+      该位置<b>不是码字边界</b>，接收设备可能把它误判为新帧开头。</div>
+    <h3>证据帧完整比特流</h3>
+    <p class="hint">高亮位为同步标记（${esc(a.marker)}，第 ${a.markerStart}–${a.markerEnd} 位）；
+      竖线为码字边界；只有标记首位落在边界（帧首或竖线后）才是合法同步。${spanNote}
+      帧首之前 / 帧尾之后需要截断串才能形成的出现均不计入证据。</p>
+    ${renderBitStream(a)}
+    <h3>涉及的警报路径（按发送顺序）</h3>
+    <table class="grid detail">
+      <thead><tr><th>帧内序号</th><th>警报</th><th>码字</th><th>电文比特区间</th><th>标记涉及</th></tr></thead>
+      <tbody>${pathRows}</tbody>
+    </table>`;
+}
+
+function renderAuditSafe(a) {
+  const [lo, hi] = a.frameRange;
+  return `
+    <div class="banner ok">✓ 隔离审计通过：在 ${lo}–${hi} 条警报的全部连续帧
+      （共 ${a.sequencesCovered.toString()} 条序列，允许警报重复）中，
+      标记 <code class="code audit-marker-code">${esc(a.marker)}</code>
+      从未在<b>非码字边界</b>位置出现——既未在任何码字内部出现，也未跨越相邻码字边界出现。</div>
+    <p class="hint">码表前后端之外的截断串未纳入证据；标记首位恰在码字边界（含帧首）的出现为合法帧同步，不属于风险。</p>`;
+}
+
+function onAudit() {
+  if (!currentResult || currentResult.status !== 'optimal') {
+    renderAuditStale('码表尚未生成或已失效：请先在上方生成仍有效的码表。');
+    return;
+  }
+  const r = auditSyncMarker(currentResult, auditMarkerEl.value);
+  if (r.status === 'invalid-marker') {
+    auditResult = null;
+    renderAuditStale(`同步标记不合规：${esc(r.error)} 旧审计结论不得沿用。`);
+    renderResult(currentResult); // 去掉码树/明细上可能存在的旧关联标示
+    return;
+  }
+  auditResult = r;
+  auditResultsEl.innerHTML =
+    r.status === 'risk' ? renderAuditRisk(r) : renderAuditSafe(r);
+  renderResult(currentResult); // 在现有二叉码树与明细中作关联标示
 }
 
 /* ---------------- 收集与求解 ---------------- */
@@ -303,13 +424,28 @@ function onSolve() {
     return;
   }
   clearErrors();
+  currentResult = result.status === 'optimal' ? result : null;
+  auditResult = null;
+  setAuditEnabled(result.status === 'optimal');
   renderResult(result);
+  if (result.status !== 'optimal') {
+    renderAuditStale('当前码表不可用（无完整分配或求解中断），无法发起审计；修订码表参数后重新生成即可继续。');
+  } else {
+    renderAuditStale('新码表已生成，旧审计结论已清除；请录入同步标记并发起审计。');
+  }
 }
 
 /* ---------------- 事件绑定 ---------------- */
 
 function bindEvents() {
   $('#solve').addEventListener('click', onSolve);
+  auditRunEl.addEventListener('click', onAudit);
+  auditMarkerEl.addEventListener('input', () => {
+    if (auditResult) invalidateAudit();
+  });
+  auditMarkerEl.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') onAudit();
+  });
 
   $('#add-alert').addEventListener('click', () => {
     if (state.alerts.length >= MAX_ALERTS) return;

@@ -44,6 +44,8 @@ body {
   .layout { grid-template-columns: 1fr; }
 }
 
+.panel.full-width { grid-column: 1 / -1; }
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -187,3 +189,79 @@ code.code.reserved { background: #fef2f2; border-color: #fecaca; color: #991b1b;
   font-size: 0.8rem;
   padding: 12px 24px 28px;
 }
+
+/* ---------------- 同步标记隔离审计 ---------------- */
+
+.audit-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+}
+.audit-marker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.audit-marker-field input {
+  font-family: var(--mono);
+  letter-spacing: 0.2em;
+  font-size: 1.05rem;
+}
+#audit-run { width: auto; margin-top: 0; flex: 0 0 auto; }
+
+.audit-marker-code { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+
+.bitstream {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  line-height: 2.1;
+  background: #fcfdfe;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.bitstream .word { display: inline-flex; }
+.bitstream .word.touched {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 1px 3px;
+}
+.bitstream .bit { padding: 1px 2px; border-radius: 3px; }
+.bitstream .bit.marker { background: #fbbf24; color: #78350f; font-weight: 700; }
+.bitstream .bit.marker-start { background: #f59e0b; color: #451a03; font-weight: 700; }
+.bitstream .word-boundary {
+  color: #94a3b8;
+  padding: 0 2px;
+  margin: 0 1px;
+  font-weight: 700;
+}
+
+tr.audit-row-hit { background: #fffbeb; }
+tr.audit-row-hit td { border-color: #fcd34d; }
+.audit-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+}
+
+.code-node.audit-hit circle {
+  fill: #f59e0b;
+  stroke: #b45309;
+  stroke-width: 2.6;
+}
+.code-node.audit-hit .node-label { fill: #92400e; font-weight: 700; }

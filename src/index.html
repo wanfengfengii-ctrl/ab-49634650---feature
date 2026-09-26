@@ -47,6 +47,23 @@
       <h2>② 编配结果</h2>
       <div id="results"></div>
     </section>
+
+    <section id="audit-panel" class="panel full-width" aria-label="同步标记隔离审计">
+      <h2>③ 同步标记隔离审计</h2>
+      <p class="hint">
+        在一份<b>已生成且仍有效</b>的码表旁录入 3–6 位二进制同步标记，审计由 2–10 类警报组成的
+        全部连续序列：确认标记只会在码字边界（合法帧同步位置）出现，不会在码字内部或跨越相邻码字时
+        被接收设备误判为新帧开头。码表前后端之外的截断串不作为证据；输入草稿一旦修改，旧审计结论立即失效。
+      </p>
+      <div class="audit-row">
+        <label class="audit-marker-field">同步标记（3–6 位 0/1）
+          <input type="text" id="audit-marker" inputmode="binary" pattern="[01]{3,6}"
+                 placeholder="如 1011" maxlength="6" spellcheck="false">
+        </label>
+        <button type="button" id="audit-run" class="btn primary">发起同步标记隔离审计</button>
+      </div>
+      <div id="audit-results"></div>
+    </section>
   </main>
 
   <footer class="site-footer">

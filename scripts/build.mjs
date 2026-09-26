@@ -53,7 +53,7 @@ async function build() {
     if (!html.includes(ref)) throw new Error(`index.html 未引用 ${ref}`);
   }
   const appJs = await readFile(join(srcDir, 'app.js'), 'utf8');
-  for (const dep of ['./solver.js', './tree.js']) {
+  for (const dep of ['./solver.js', './tree.js', './audit.js']) {
     if (!appJs.includes(dep)) throw new Error(`app.js 未引用 ${dep}`);
   }
   console.log('✓ 静态资源引用核对通过');

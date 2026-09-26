@@ -100,3 +100,71 @@ test('警报类别与保留前缀的增删及数量上限', () => {
   $('#add-reserved').fire('click');
   assert.equal($('#add-reserved').disabled, true); // 3 条封顶
 });
+
+test('初始状态下审计按钮禁用，码表生成后可用', () => {
+  $('#load-sample').fire('click');
+  assert.equal($('#audit-run').disabled, true);
+  assert.ok($('#audit-results').innerHTML.includes('码表已失效'));
+  $('#solve').fire('click');
+  assert.equal($('#audit-run').disabled, false);
+  assert.ok($('#audit-results').innerHTML.includes('发起审计'));
+});
+
+test('隔离审计发现风险：展示证据帧、码字边界、标记位置、警报路径与码树/明细关联标示', () => {
+  $('#audit-marker').value = '010'; // 000|10 = 强余震警报|解除警报
+  $('#audit-run').fire('click');
+  const html = $('#audit-results').innerHTML;
+  assert.ok(html.includes('误同步风险'));
+  assert.ok(html.includes('bitstream')); // 完整比特流
+  assert.ok(html.includes('word-boundary')); // 码字边界
+  assert.ok(html.includes('marker-start')); // 标记位置
+  assert.ok(html.includes('跨越'));
+  assert.ok(html.includes('涉及的警报路径'));
+  assert.ok(html.includes('强余震警报') && html.includes('解除警报'));
+  // 码树与明细表中的关联标示
+  const result = $('#results').innerHTML;
+  assert.ok(result.includes('audit-hit'), '码树中应高亮涉及码字');
+  assert.ok(result.includes('审计涉及'), '明细表中应标注涉及警报');
+});
+
+test('修改标记立即作废旧审计结论并移除关联标示', () => {
+  $('#audit-marker').value = '011';
+  $('#audit-marker').fire('input');
+  assert.ok($('#audit-results').innerHTML.includes('失效'));
+  const result = $('#results').innerHTML;
+  assert.ok(!result.includes('audit-hit'));
+  assert.ok(!result.includes('审计涉及'));
+});
+
+test('不合规标记不得沿用旧结论；草稿修改后审计入口被禁用', () => {
+  $('#audit-marker').value = '010';
+  $('#audit-run').fire('click');
+  assert.ok($('#audit-results').innerHTML.includes('误同步风险'));
+  $('#audit-marker').value = '11'; // 仅 2 位
+  $('#audit-run').fire('click');
+  assert.ok($('#audit-results').innerHTML.includes('不合规'));
+  assert.ok(!$('#results').innerHTML.includes('audit-hit'));
+  // 草稿被修改：码表与审计双双失效，可继续修订后重新生成
+  type(0, 'freq', '99');
+  assert.equal($('#audit-run').disabled, true);
+  assert.ok($('#audit-results').innerHTML.includes('旧审计结论不再沿用'));
+});
+
+test('无风险时明确声明该长度范围内全部连续帧均无非边界标记出现', () => {
+  $('#reset').fire('click');
+  for (let i = 0; i < 5; i++) {
+    type(i, 'name', `c${i}`);
+    type(i, 'freq', '1');
+    type(i, 'lo', '3');
+    type(i, 'hi', '3');
+  }
+  $('#solve').fire('click');
+  assert.ok($('#results').innerHTML.includes('已找到最优码表'));
+  $('#audit-marker').value = '0111';
+  $('#audit-run').fire('click');
+  const html = $('#audit-results').innerHTML;
+  assert.ok(html.includes('隔离审计通过'));
+  assert.ok(html.includes('从未在'));
+  assert.ok(html.includes('非码字边界'));
+  assert.ok(html.includes('2–10 条警报'));
+});
