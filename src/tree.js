@@ -10,7 +10,7 @@ export const PAD_TOP = 30;
 export const PAD_BOTTOM = 46;
 
 /**
- * @param {Array<{code:string, name:string}>} codes 已分配码字
+ * @param {Array<{code:string, name:string, idx?:number}>} codes 已分配码字（idx 为警报输入顺序下标，可选）
  * @param {Array<{prefix:string}>} reserved 保留前缀
  * @returns {{nodes:Array, edges:Array, width:number, height:number, maxDepth:number}}
  */
@@ -34,10 +34,11 @@ export function buildTreeLayout(codes, reserved) {
     return node;
   };
 
-  for (const { code, name } of codes) {
+  for (const { code, name, idx } of codes) {
     const node = ensureNode(code);
     node.type = 'code';
     node.label = name;
+    node.alertIdx = idx;
   }
   for (const { prefix } of reserved) {
     const node = ensureNode(prefix);

@@ -181,6 +181,42 @@ code.code.reserved { background: #fef2f2; border-color: #fecaca; color: #991b1b;
 .node-label { font-size: 10px; text-anchor: middle; fill: var(--ink); }
 .node-code { font-size: 10px; text-anchor: middle; fill: var(--muted); font-family: var(--mono); }
 
+/* 同步标记隔离审计 */
+#audit-panel { border-top: 1px dashed var(--line); margin-top: 16px; padding-top: 2px; }
+.audit-controls { display: flex; gap: 8px; margin: 8px 0 12px; }
+.audit-controls input { font-family: var(--mono); max-width: 240px; }
+.audit-controls .btn { white-space: nowrap; }
+.hint.stale { color: #b45309; }
+
+.audit-frame p { margin: 6px 0; }
+.audit-path { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.path-item code { margin-left: 4px; }
+.path-sep { color: var(--muted); }
+.bitstream {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+  font-family: var(--mono);
+}
+.cw-seg {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: #f8fafc;
+  text-align: center;
+}
+.cw-bits { display: block; letter-spacing: 0.12em; }
+.cw-cap { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 2px; font-family: inherit; }
+.bit { display: inline-block; min-width: 1em; text-align: center; border-radius: 3px; }
+.bit.hit { background: #fee2e2; color: #b91c1c; font-weight: 700; outline: 1px solid #fca5a5; }
+.audit-facts { margin: 8px 0 0; padding-left: 20px; font-size: 0.88rem; }
+.audit-facts li { margin: 2px 0; }
+
+/* 审计证据帧涉及警报的关联标示 */
+g.audit-hit circle { stroke: #d97706; stroke-width: 3.5; }
+tr.audit-hit td { background: #fffbeb; }
+
 .site-footer {
   text-align: center;
   color: var(--muted);

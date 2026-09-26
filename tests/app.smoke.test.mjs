@@ -100,3 +100,87 @@ test('警报类别与保留前缀的增删及数量上限', () => {
   $('#add-reserved').fire('click');
   assert.equal($('#add-reserved').disabled, true); // 3 条封顶
 });
+
+/* ---------------- 同步标记隔离审计 ---------------- */
+
+const setMarker = (value) => {
+  const marker = $('#sync-marker');
+  marker.value = value;
+  marker.fire('input');
+};
+
+test('审计面板随码表有效性显隐', () => {
+  $('#load-sample').fire('click');
+  assert.equal($('#audit-panel').hidden, true); // 码表尚未生成
+  $('#solve').fire('click');
+  assert.equal($('#audit-panel').hidden, false); // 码表有效，可发起审计
+  type(0, 'freq', '4'); // 修改输入草稿
+  assert.equal($('#audit-panel').hidden, true); // 旧码表失效，面板隐藏
+  type(0, 'freq', '3');
+});
+
+test('发现风险：展示证据帧并在码树与明细中关联标示', () => {
+  $('#load-sample').fire('click');
+  $('#solve').fire('click');
+  setMarker('100');
+  $('#run-audit').fire('click');
+  const out = $('#audit-output').innerHTML;
+  assert.ok(out.includes('发现隔离风险'));
+  assert.ok(out.includes('证据帧'));
+  assert.ok(out.includes('1111000')); // 完整比特流
+  assert.ok(out.includes('码字边界'));
+  assert.ok(out.includes('非法同步'));
+  assert.ok(out.includes('特大地震预警') && out.includes('强余震警报')); // 警报路径
+  const results = $('#results').innerHTML;
+  assert.ok(results.includes('audit-hit')); // 关联标示
+  assert.ok(results.includes('data-alert-idx="0"'));
+});
+
+test('标记不合规或文本被修改：不沿用旧审计结论', () => {
+  $('#load-sample').fire('click');
+  $('#solve').fire('click');
+  setMarker('100');
+  $('#run-audit').fire('click');
+  assert.ok($('#audit-output').innerHTML.includes('发现隔离风险'));
+  setMarker('10'); // 修改标记文本：旧结论立即失效，关联标示去除
+  assert.ok($('#audit-output').innerHTML.includes('已失效'));
+  assert.ok(!$('#results').innerHTML.includes('audit-hit'));
+  $('#run-audit').fire('click'); // 长度不合规
+  assert.ok($('#audit-output').innerHTML.includes('不合规'));
+  assert.ok(!$('#results').innerHTML.includes('audit-hit'));
+  setMarker('10a1'); // 非法字符
+  $('#run-audit').fire('click');
+  assert.ok($('#audit-output').innerHTML.includes('0/1'));
+});
+
+test('重新生成码表后旧审计结论失效', () => {
+  $('#load-sample').fire('click');
+  $('#solve').fire('click');
+  setMarker('100');
+  $('#run-audit').fire('click');
+  assert.ok($('#results').innerHTML.includes('audit-hit'));
+  $('#solve').fire('click'); // 重新生成码表
+  assert.ok(!$('#results').innerHTML.includes('audit-hit'));
+  assert.ok(!$('#audit-output').innerHTML.includes('发现隔离风险'));
+  assert.ok($('#audit-output').innerHTML.includes('发起审计'));
+});
+
+test('审计通过：该长度范围内全部连续帧均无非法命中', () => {
+  $('#load-sample').fire('click');
+  // 调整为 5 类、码长固定 1–5 位、无保留前缀 ⇒ 码表 0/10/110/1110/11110
+  $('#input-panel').fire('click', { target: { closest: () => ({ dataset: { removeAlert: '5' } }) } });
+  $('#input-panel').fire('click', { target: { closest: () => ({ dataset: { removeReserved: '0' } }) } });
+  for (let i = 0; i < 5; i++) {
+    type(i, 'lo', String(i + 1));
+    type(i, 'hi', String(i + 1));
+  }
+  $('#solve').fire('click');
+  assert.ok($('#results').innerHTML.includes('11110'));
+  setMarker('111101');
+  $('#run-audit').fire('click');
+  const out = $('#audit-output').innerHTML;
+  assert.ok(out.includes('审计通过'));
+  assert.ok(out.includes('均未在任何非码字边界处出现'));
+  assert.ok(out.includes('12207025')); // 5^2+…+5^10 条连续帧
+  assert.ok(!$('#results').innerHTML.includes('audit-hit'));
+});

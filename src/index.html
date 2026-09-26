@@ -46,11 +46,26 @@
     <section id="result-panel" class="panel" aria-label="编配结果">
       <h2>② 编配结果</h2>
       <div id="results"></div>
+
+      <div id="audit-panel" hidden>
+        <h3>③ 同步标记隔离审计</h3>
+        <p class="hint">
+          在当前码表有效期间，录入 3–6 位二进制同步标记并发起审计：审计覆盖由 2–10 条警报组成的
+          全部连续电文，确认标记不会在码字内部（含横跨相邻码字处）被误认为新帧开头。
+          只有标记首位恰落在码字边界才算合法同步；电文首尾之外的截断串不作证据。
+        </p>
+        <div class="audit-controls">
+          <input type="text" id="sync-marker" placeholder="如 0110（3–6 位 0/1）"
+                 pattern="[01]+" spellcheck="false" autocomplete="off">
+          <button type="button" id="run-audit" class="btn">发起审计</button>
+        </div>
+        <div id="audit-output"></div>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>码长上限 12 位 · 目标优先级：总加权码长 → 最大码长 → 按输入顺序展开的码字字典序</p>
+    <p>码长上限 12 位 · 目标优先级：总加权码长 → 最大码长 → 按输入顺序展开的码字字典序 · 同步标记隔离审计：3–6 位标记 × 2–10 条连续帧</p>
   </footer>
 
   <script type="module" src="app.js"></script>
